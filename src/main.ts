@@ -256,12 +256,12 @@ async function boot(): Promise<void> {
   }
 
   /**
-   * Bạn đứng cổ vũ ở trận cuối (iPad: ≤ 150 draw call / khung, như game 5 giới hạn đám đông): tối đa 12 bạn đã cứu, mới
+   * Bạn đứng cổ vũ ở trận cuối (iPad: ≤ 150 draw call / khung, như game 5 giới hạn đám đông): tối đa 10 bạn đã cứu, mới
    * nhất trước; bỏ 5 bạn G5 / Equestria Girls rip nhiều mảnh trong suốt (10–15 draw call mỗi bạn). Bộ sưu tập + màn kết
    * vẫn đủ mọi bạn đã cứu.
    */
   function finaleFriends(): FriendId[] {
-    return progress.friends.filter((f) => !HEAVY_FRIENDS.includes(f)).slice(-12);
+    return progress.friends.filter((f) => !HEAVY_FRIENDS.includes(f)).slice(-10);
   }
 
   /** Bạn đi trong hàng ở màn `def`: bạn đã cứu ở màn khác, mới nhất trước, vừa đủ chỗ trống sau người nhà. */

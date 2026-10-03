@@ -4,6 +4,7 @@
 // Ngọc thứ 5 → cầu vồng hài hoà → bóng tối vỡ tan, Nightmare Moon hoá lại Luna = bác Hanh, trời sáng, cả nhà ăn mừng.
 // Sai: Nightmare Moon cười hô hô, không bao giờ phạt.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CAST, HARMONY, type CastId, type LevelDef } from './data';
 import type { World } from './world';
 import type { Hero } from './hero';
@@ -348,12 +349,19 @@ export class FinalBattle {
     void this.hero.castPose(2200);
     this.world.magic.ring(new THREE.Vector3(this.hero.x, 0.2, this.hero.z), 0xffffff, 120, 4);
     // cầu vồng vòm lớn vắt ngang trời sau lưng Nightmare Moon (camera nhìn thẳng vào), mọc dần từ hai chân
+    // 6 dải gộp 1 lưới màu đỉnh (1 draw call thay vì 6)
     const g = new THREE.Group();
-    RAINBOW.forEach((c, i) => {
-      const r = 10.5 - i * 0.42;
-      const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.22, 8, 72, Math.PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.92, depthWrite: false }));
-      g.add(m);
+    const bands = RAINBOW.map((c, i) => {
+      const geo = new THREE.TorusGeometry(10.5 - i * 0.42, 0.22, 8, 72, Math.PI);
+      const col = new THREE.Color(c);
+      const n = geo.attributes.position.count;
+      const arr = new Float32Array(n * 3);
+      for (let k = 0; k < n; k++) arr.set([col.r, col.g, col.b], k * 3);
+      geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+      return geo;
     });
+    g.add(new THREE.Mesh(mergeGeometries(bands, false)!, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.92, depthWrite: false })));
+    for (const b of bands) b.dispose();
     g.position.set(0, 0, BOSS_SPOT.z - 1.5);
     g.scale.set(1, 0.01, 1);
     this.group.add(g);
