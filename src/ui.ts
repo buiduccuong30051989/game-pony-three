@@ -11,11 +11,8 @@ export const els = {
   stars: $('#stars'),
   gemsPill: $('#gems-pill'),
   gems: $('#gems'),
-  ctrlLeft: $<HTMLButtonElement>('#ctrl-left'),
-  ctrlRight: $<HTMLButtonElement>('#ctrl-right'),
-  ctrlUp: $<HTMLButtonElement>('#ctrl-up'),
-  ctrlDown: $<HTMLButtonElement>('#ctrl-down'),
   ctrlJump: $<HTMLButtonElement>('#ctrl-jump'),
+  flyBtn: $<HTMLButtonElement>('#fly-btn'),
   home: $<HTMLButtonElement>('#home'),
   panel: $('#panel'),
   repeat: $<HTMLButtonElement>('#repeat'),
@@ -40,9 +37,9 @@ export const els = {
   galleryClose: $<HTMLButtonElement>('#gallery-close'),
 };
 
-/** Hiện/ẩn D-pad + nút nhảy (HUD đi kèm). */
+/** Hiện/ẩn nút nhảy + 🪽 bay (đi bằng chạm đất nên không còn D-pad). */
 export function showControls(v: boolean): void {
-  els.ctrlLeft.hidden = els.ctrlRight.hidden = els.ctrlUp.hidden = els.ctrlDown.hidden = els.ctrlJump.hidden = !v;
+  els.ctrlJump.hidden = els.flyBtn.hidden = !v;
 }
 export function showHud(v: boolean): void {
   els.hud.hidden = !v;

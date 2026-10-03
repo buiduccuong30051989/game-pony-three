@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Nhím pony" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icon-180.png" />
   <meta name="theme-color" content="#fff4e4" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦄%3C/text%3E%3C/svg%3E" />
   <title>Nhím và phép thuật tình bạn</title>
@@ -15,15 +20,20 @@
     :root {
       --bg: #fff4e4; --ink: #3b3220; --accent: #ff9600; --success: #58cc02; --error: #da5e4e;
       --blue: #1cb0f6; --magic: #a06cd5; --pink: #ff7ac8; --card: #fffaf0; --shadow: 0 6px 0 rgba(59, 50, 32, .18);
+      --safe-l: max(14px, env(safe-area-inset-left)); --safe-r: max(14px, env(safe-area-inset-right));
+      --safe-t: max(12px, env(safe-area-inset-top)); --safe-b: max(14px, env(safe-area-inset-bottom));
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     [hidden] { display: none !important; }
-    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); position: fixed; inset: 0; overscroll-behavior: none; }
+    /* iPad: không zoom chụm / chạm đúp, không bôi đen chữ, không menu giữ lâu, không kéo nảy trang */
     body {
       font-family: 'Baloo 2', 'Nunito', system-ui, sans-serif; color: var(--ink);
-      user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: none;
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
     }
-    #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+    button, img { -webkit-touch-callout: none; -webkit-user-drag: none; touch-action: manipulation; }
+    #app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
     .big {
       appearance: none; border: 5px solid var(--ink); border-radius: 999px; background: #fff;
@@ -33,17 +43,15 @@
     }
     .big:active, .big.down { transform: translateY(4px); box-shadow: 0 2px 0 rgba(59, 50, 32, .18); background: #ffe9c2; }
 
-    /* điều khiển */
-    /* D-pad chữ thập góc trái dưới, nhảy góc phải dưới */
-    #ctrl-left, #ctrl-right, #ctrl-up, #ctrl-down, #ctrl-jump { position: fixed; z-index: 5; }
-    #ctrl-left  { left: max(14px, env(safe-area-inset-left)); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 96px); }
-    #ctrl-right { left: calc(max(14px, env(safe-area-inset-left)) + 192px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 96px); }
-    #ctrl-up    { left: calc(max(14px, env(safe-area-inset-left)) + 96px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 192px); }
-    #ctrl-down  { left: calc(max(14px, env(safe-area-inset-left)) + 96px); bottom: max(14px, env(safe-area-inset-bottom)); }
-    #ctrl-jump { right: max(18px, env(safe-area-inset-right)); bottom: max(18px, env(safe-area-inset-bottom)); width: 132px; height: 132px; font-size: 64px; background: var(--magic); border-color: #6f3fa8; color: #fff; }
+    /* điều khiển: đi bằng chạm đất (không D-pad); nút nhảy tím + 🪽 bay to ở góc phải dưới (port từ game 5) */
+    #ctrl-jump { position: fixed; z-index: 5; right: calc(var(--safe-r) + 6px); bottom: calc(var(--safe-b) + 6px); width: 150px; height: 150px; font-size: 72px; background: radial-gradient(circle at 40% 35%, #d8b4ff, var(--magic)); border-color: #6f3fa8; color: #fff; }
+    #fly-btn { position: fixed; z-index: 5; right: calc(var(--safe-r) + 172px); bottom: calc(var(--safe-b) + 6px); width: 150px; height: 150px; font-size: 76px;
+      background: radial-gradient(circle at 40% 35%, #fff, #ffe3f3); border-color: #ff7ac8; }
+    #fly-btn.on { background: radial-gradient(circle at 40% 35%, #fff, #ffd1f0); border-color: #ff5fa8; animation: pulse .5s ease-in-out infinite; }
+    #fly-btn.cool { opacity: .45; }
 
     /* HUD */
-    #hud { position: fixed; top: 16px; left: 18px; right: 18px; display: flex; justify-content: space-between; align-items: center; z-index: 5; pointer-events: none; }
+    #hud { position: fixed; top: var(--safe-t); left: calc(var(--safe-l) + 4px); right: calc(var(--safe-r) + 4px); display: flex; justify-content: space-between; align-items: center; z-index: 5; pointer-events: none; }
     .pill { background: var(--card); border: 4px solid var(--ink); border-radius: 999px; padding: 4px 18px; font-size: 30px; font-weight: 800; box-shadow: var(--shadow); display: flex; gap: 10px; align-items: center; }
     #stars span { opacity: .25; transition: transform .3s, opacity .3s; display: inline-block; }
     #stars span.on { opacity: 1; animation: pop .5s ease; }
@@ -56,7 +64,7 @@
       box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 14px;
     }
     #panel-top { display: flex; align-items: center; gap: 14px; min-height: 60px; }
-    #repeat { width: 64px; height: 64px; font-size: 30px; }
+    #repeat { width: 90px; height: 90px; font-size: 42px; }
     #word { font-size: clamp(48px, 7vw, 84px); font-weight: 800; letter-spacing: .04em; display: flex; gap: .02em; }
     #word span { transition: color .15s, transform .15s; display: inline-block; }
     #word span.lit { color: var(--accent); transform: translateY(-6px) scale(1.08); }
@@ -65,8 +73,8 @@
     #counter { width: 76px; height: 76px; border-radius: 50%; background: var(--accent); border: 5px solid var(--ink); color: #fff; font-size: 44px; font-weight: 800; display: grid; place-items: center; }
     #counter.bump { animation: bump .35s ease; }
     @keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
-    #gemrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; max-width: 640px; }
-    .gem { appearance: none; border: 0; background: none; font-size: 56px; line-height: 1; cursor: pointer; padding: 4px; transition: transform .2s, opacity .2s; filter: drop-shadow(0 4px 0 rgba(59,50,32,.2)); }
+    #gemrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 700px; }
+    .gem { appearance: none; border: 0; background: none; font-size: 60px; line-height: 1; cursor: pointer; padding: 14px; min-width: 90px; min-height: 90px; transition: transform .2s, opacity .2s; filter: drop-shadow(0 4px 0 rgba(59,50,32,.2)); }
     .gem.done { transform: scale(.75); opacity: .35; }
     #options { display: flex; gap: 18px; }
     .opt {
@@ -101,7 +109,7 @@
 
 
     /* nút nhà + màn đêm (viền tím mờ theo --night do world.setNight ghi) */
-    #home { position: fixed; z-index: 6; top: 84px; left: 18px; width: 68px; height: 68px; font-size: 32px; }
+    #home { position: fixed; z-index: 6; top: calc(var(--safe-t) + 72px); left: calc(var(--safe-l) + 4px); width: 92px; height: 92px; font-size: 44px; }
     #night { position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: calc(var(--night, 0) * .75);
       background: radial-gradient(ellipse at 50% 45%, rgba(40,30,110,0) 55%, rgba(40,30,110,.55) 100%); transition: opacity .3s; }
     .hgem { font-size: 34px; text-shadow: 0 0 0 transparent; opacity: .25 !important; -webkit-text-stroke: 2px rgba(59,50,32,.5); }
@@ -201,20 +209,24 @@
       .mf-ava { width: 40px; height: 40px; }
     }
 
+    /* màn dọc: nhắc xoay ngang */
+    #rotate { display: none; z-index: 50; background: linear-gradient(180deg, #c9b6ff, #ffd9ec); flex-direction: column; gap: 20px; font-size: 32px; font-weight: 800; color: #6f3fa8; text-align: center; padding: 30px; }
+    #rotate div { font-size: 120px; animation: spinHint 2s ease-in-out infinite; }
+    @keyframes spinHint { 0%,30% { transform: rotate(0); } 60%,100% { transform: rotate(-90deg); } }
+    @media (orientation: portrait) and (max-width: 1100px) { #rotate { display: flex; } }
+    #perf { position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 60; background: rgba(0,0,0,.6); color: #fff; font: 14px monospace; padding: 2px 10px; border-radius: 8px; pointer-events: none; }
+
     #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
     #confetti i { position: absolute; top: -20px; width: 14px; height: 22px; border-radius: 4px; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: .6; } }
 
     @media (max-width: 720px) {
-      .big { width: 76px; height: 76px; font-size: 38px; }
-      #ctrl-left  { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 80px); }
-      #ctrl-right { left: calc(max(14px, env(safe-area-inset-left)) + 160px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 80px); }
-      #ctrl-up    { left: calc(max(14px, env(safe-area-inset-left)) + 80px); bottom: calc(max(14px, env(safe-area-inset-bottom)) + 160px); }
-      #ctrl-down  { left: calc(max(14px, env(safe-area-inset-left)) + 80px); }
-      #ctrl-jump { width: 104px; height: 104px; }
+      .big { width: 80px; height: 80px; font-size: 40px; }
+      #ctrl-jump, #fly-btn { width: 112px; height: 112px; font-size: 54px; }
+      #fly-btn { right: calc(var(--safe-r) + 130px); }
       .opt { width: 104px; height: 104px; font-size: 60px; }
       .pill { font-size: 24px; }
-      #home { top: 76px; width: 60px; height: 60px; font-size: 28px; }
+      #home { width: 80px; height: 80px; font-size: 38px; }
       .fam-ava { width: 78px; height: 78px; font-size: 50px; }
       .fam-name { font-size: 24px; } .fam-say { font-size: 21px; }
       .node-ava { width: 88px; height: 88px; font-size: 52px; }
@@ -233,11 +245,8 @@
   <button id="home" class="big" aria-label="Về bản đồ" hidden>🏠</button>
   <div id="night" aria-hidden="true"></div>
 
-  <button id="ctrl-up" class="big" aria-label="Đi lên" hidden>▲</button>
-  <button id="ctrl-left" class="big" aria-label="Đi trái" hidden>◀</button>
-  <button id="ctrl-right" class="big" aria-label="Đi phải" hidden>▶</button>
-  <button id="ctrl-down" class="big" aria-label="Đi xuống" hidden>▼</button>
   <button id="ctrl-jump" class="big" aria-label="Nhảy" hidden>⬆</button>
+  <button id="fly-btn" class="big" aria-label="Bay" hidden>🪽</button>
 
   <div id="panel" hidden>
     <div id="panel-top">
@@ -283,6 +292,9 @@
     <button id="start-btn" class="big" aria-label="Bắt đầu">🦄</button>
     <p>Nhím ơi, chạm để bắt đầu</p>
   </div>
+
+  <div id="rotate" class="overlay"><div>📱</div>Nhím ơi, xoay ngang máy nhé!</div>
+  <div id="perf" hidden></div>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

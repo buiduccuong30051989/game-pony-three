@@ -1,4 +1,4 @@
-// Điều phối: bản đồ → đảo → đi 4 hướng/nhảy/nhặt ngọc → quái → thử thách → phép → bong bóng → cứu người nhà.
+// Điều phối: bản đồ → đảo → chạm đất để đi / nhảy / bay 🪽 / nhặt ngọc → quái → thử thách → phép → bong bóng → cứu người nhà.
 // Người nhà đã cứu (hoá pony) đi theo Twilight ở các màn sau; màn 7 đấu Nightmare Moon (src/battle.ts).
 // Debug URL: xem README (?level=, &auto=1, &mute=1, &stars=3, &rescue=1, &battle=N, &win=1, &end=1, &unlock=all, &done=all).
 import * as THREE from 'three';
@@ -8,7 +8,7 @@ import {
 import { World, type LevelHandles } from './world';
 import { Hero } from './hero';
 import { Monster } from './monster';
-import { Challenge } from './challenge';
+import { Challenge, testHook } from './challenge';
 import { Actor, Trail } from './actors';
 import { FinalBattle } from './battle';
 import { unlockAudio, preload, play, sfx, stopSpeech } from './audio';
@@ -73,6 +73,12 @@ const SPIKE_TEXT: Record<string, string> = {
   spike_hint_bubble: 'Bong bóng ở đằng kia, đi tới đó nhé!',
 };
 
+/**
+ * Bạn G5 / Equestria Girls rip nhiều mảnh trong suốt (10–15 draw call mỗi bạn): chỉ xuất hiện ở màn của mình (trong bong
+ * bóng → được cứu → đi theo tới hết màn) + bộ sưu tập + màn kết, không đi hàng ở màn khác / đứng ở trận cuối (iPad).
+ */
+const HEAVY_FRIENDS: FriendId[] = ['sunny', 'sunset', 'starlight', 'pipp', 'zipp'];
+
 interface Progress { unlocked: number; done: string[]; /** bạn pony đã cứu (theo thứ tự cứu) */ friends: FriendId[] }
 function loadProgress(): Progress {
   try {
@@ -125,12 +131,26 @@ async function boot(): Promise<void> {
   let inChallenge = false, rescued = false;
   let hornSparkle = 0, guideTimer = 0, hintT = 0, hintIdx = 0;
   let token = 0; // đổi màn → các kịch bản async cũ tự dừng
+  let fpsT = 0, fpsN = 0, fps = 0;
+  /** lần cuối hero bị khoá (để watchdog nhả khoá kẹt) */
+  let lockedSince = 0;
 
   const ready = Promise.all([world.load('models/twilight_static/scene.gltf'), world.load('models/tree_default.glb')]);
   world.start((dt) => {
     t += dt;
+    fpsT += dt; fpsN++;
+    if (fpsT >= 1) { fps = fpsN / fpsT; fpsT = 0; fpsN = 0; }
     if (hero) {
       hero.update(dt, (x, z) => world.clampToIsland(x, z));
+      // bay: vệt lấp lánh sau lưng + trạng thái nút 🪽
+      if (hero.flying || (hero.airborne && hero.wings.visible)) {
+        for (let i = 0; i < 2; i++) {
+          world.magic.emit({ x: hero.x + (Math.random() - 0.5) * 0.6, y: hero.y + 0.9 + Math.random() * 0.6, z: hero.z + (Math.random() - 0.5) * 0.6,
+            color: [0xff7ac8, 0xffd166, 0x7fd8ff, 0xc084fc][Math.floor(Math.random() * 4)], vy: -0.3, max: 0.9, size: 0.28 });
+        }
+      }
+      els.flyBtn.classList.toggle('on', hero.flying);
+      els.flyBtn.classList.toggle('cool', !hero.flying && !hero.canFly);
       world.follow(dt, hero.x, hero.z, t);
       tick(dt);
     } else {
@@ -139,6 +159,11 @@ async function boot(): Promise<void> {
   });
 
   await ready;
+  // iPad: mọi lần chạm đều thử mở / resume âm thanh (iOS có trạng thái 'interrupted' sau khoá màn hình, cuộc gọi...)
+  document.addEventListener('touchend', () => unlockAudio(), { passive: true, capture: true });
+  document.addEventListener('click', () => unlockAudio(), { capture: true });
+  // Safari iPad: chặn zoom chụm 2 ngón / chạm đúp (touch-action: none đã chặn phần lớn, đây là lưới an toàn)
+  for (const ev of ['gesturestart', 'gesturechange', 'dblclick']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
   els.startBtn.classList.add('ready');
   const begin = async () => {
     unlockAudio();
@@ -230,11 +255,20 @@ async function boot(): Promise<void> {
     return Actor.fromDef(world, { ...CAST[id], model });
   }
 
+  /**
+   * Bạn đứng cổ vũ ở trận cuối (iPad: ≤ 150 draw call / khung, như game 5 giới hạn đám đông): tối đa 12 bạn đã cứu, mới
+   * nhất trước; bỏ 5 bạn G5 / Equestria Girls rip nhiều mảnh trong suốt (10–15 draw call mỗi bạn). Bộ sưu tập + màn kết
+   * vẫn đủ mọi bạn đã cứu.
+   */
+  function finaleFriends(): FriendId[] {
+    return progress.friends.filter((f) => !HEAVY_FRIENDS.includes(f)).slice(-12);
+  }
+
   /** Bạn đi trong hàng ở màn `def`: bạn đã cứu ở màn khác, mới nhất trước, vừa đủ chỗ trống sau người nhà. */
   function paradeFriends(def: LevelDef, familyCount: number): FriendId[] {
     const slots = Math.max(0, MAX_PARADE - familyCount);
     if (!slots) return [];
-    return progress.friends.filter((f) => !def.friends.includes(f)).slice(-slots);
+    return progress.friends.filter((f) => !def.friends.includes(f) && !HEAVY_FRIENDS.includes(f)).slice(-slots);
   }
 
   // ---------- vào màn ----------
@@ -255,12 +289,13 @@ async function boot(): Promise<void> {
     const crowdIds: CastId[] = def.final
       ? ['spike', ...before.filter((x) => x !== 'bac-hanh')]
       : ['spike', ...before.filter((x) => CAST[x].kind === 'cat'), ...before.filter((x) => CAST[x].kind !== 'cat')];
-    const paradeIds: FriendId[] = def.final ? [...progress.friends] : paradeFriends(def, crowdIds.length);
+    const paradeIds: FriendId[] = def.final ? finaleFriends() : paradeFriends(def, crowdIds.length);
     const [h, hnd, crowd, paradeFr, held, inBubble] = await Promise.all([
       Hero.load(world, def.hero),
       world.buildLevel(def, bubbleScale, rc.kind === 'cat' ? rc.emoji : undefined),
       Promise.all(crowdIds.map((c) => Actor.create(world, c))),
-      Promise.all(paradeIds.map((f) => friendActor(f, !!def.final))),
+      // bạn đi trong hàng / đứng cổ vũ: bản lod/ (camera xa, iPad nhẹ); bạn trong bong bóng: bản đủ
+      Promise.all(paradeIds.map((f) => friendActor(f, true))),
       Promise.all(def.friends.map((f) => friendActor(f))),
       !def.final && rc.kind !== 'cat' ? Actor.create(world, def.rescue) : Promise.resolve(null),
     ]);
@@ -292,7 +327,11 @@ async function boot(): Promise<void> {
       followers = [...crowd, ...paradeFr]; // để cleanup() dọn
       await battle.setup();
       if (my !== token) return;
-      await battle.run({ startGems: DEBUG.battle, skipToWin: DEBUG.win }, () => sfx('sfx_soft', 0.4));
+      try {
+        await battle.run({ startGems: DEBUG.battle, skipToWin: DEBUG.win }, () => sfx('sfx_soft', 0.4));
+      } catch (e) {
+        console.error('[battle]', e); // lỗi giữa trận: vẫn sang màn kết, không kẹt
+      }
       if (my !== token) return;
       if (!progress.done.includes(def.id)) progress.done.push(def.id);
       saveProgress(progress);
@@ -464,7 +503,7 @@ async function boot(): Promise<void> {
 
     // nhặt ngọc
     for (const g of handles.gems) {
-      if (!g.taken && Math.hypot(g.x - hero.x, g.z - hero.z) < 1.2 && hero.y < 1.6) {
+      if (!g.taken && Math.hypot(g.x - hero.x, g.z - hero.z) < 1.2 && hero.y < 2.8) {
         g.taken = true;
         g.mesh.visible = false;
         gems++; setGems(gems);
@@ -478,6 +517,13 @@ async function boot(): Promise<void> {
       hintT += dt;
       if (hintT > 10) { hintT = -8; void spikeHint(); }
     } else if (hero.moving) hintT = 0;
+
+    // đang bay tới chỗ quái / bong bóng → tự hạ cánh rồi mới bắt đầu (bài vẫn phải làm)
+    if (hero.flying && !inChallenge) {
+      const nearM = monsters.some((m) => !m.defeated && Math.hypot(m.x - hero!.x, m.z - hero!.z) < 3.4);
+      const nearB = stars >= 3 && !rescued && Math.hypot(handles.bubble.position.x - hero.x, handles.bubble.position.z - hero.z) < 4 + handles.bubbleR - 1.5;
+      if (nearM || nearB) { hero.land(); hero.stop(); }
+    }
 
     // gặp quái
     if (!inChallenge && hero.grounded) {
@@ -503,9 +549,30 @@ async function boot(): Promise<void> {
   async function challengeAt(m: Monster): Promise<void> {
     if (!hero || !level) return;
     const my = token;
+    const h = hero;
     inChallenge = true;
     huddleAt = { x: m.x, z: m.z };
-    hero.locked = true; hero.setMove(0, 0);
+    h.locked = true; h.stop();
+    showControls(false);
+    try {
+      await challengeBody(m, my);
+    } catch (e) {
+      console.error('[challenge]', e);
+    } finally {
+      // LUÔN nhả khoá (kể cả khi lỗi): không bao giờ để bé kẹt không đi được
+      if (my === token) {
+        huddleAt = null;
+        h.locked = false;
+        inChallenge = false;
+        hintT = 0;
+        showPanel(false);
+        if (phase === 'play') showControls(true);
+      }
+    }
+  }
+
+  async function challengeBody(m: Monster, my: number): Promise<void> {
+    if (!hero || !level) return;
     hero.faceTo(m.x, m.z);
     m.faceTo(hero.x, hero.z);
     stopSpeech();
@@ -532,9 +599,6 @@ async function boot(): Promise<void> {
     if (my !== token) return;
     huddleAt = null;
     if (stars >= 3) await hero.celebrate();
-    hero.locked = false;
-    inChallenge = false;
-    hintT = 0;
   }
 
   /** Bạn pony vừa được cứu: lấp lánh, quay sang Nhím cảm ơn, rồi chạy vào cuối hàng (đầy hàng thì bạn cũ nhất về nhà). */
@@ -567,18 +631,56 @@ async function boot(): Promise<void> {
   async function rescue(): Promise<void> {
     if (!hero || !level || !handles) return;
     const my = token;
-    const def = level, hnd = handles, h = hero;
+    const def = level;
     rescued = true;
     inChallenge = true;
+    showControls(false);
+    try {
+      await rescueBody(my);
+    } catch (e) {
+      console.error('[rescue]', e);
+    }
+    if (my !== token) return;
+    // xong (hoặc lỗi giữa chừng): vẫn ghi đã cứu + về bản đồ → không bao giờ kẹt ở bong bóng
+    if (!progress.done.includes(def.id)) progress.done.push(def.id);
+    const idx = LEVELS.findIndex((l) => l.id === def.id);
+    progress.unlocked = Math.max(progress.unlocked, idx + 2);
+    saveProgress(progress);
+    cleanup();
+    openMap();
+  }
+
+  /** Chờ bé bấm ✨; im lặng 15 s thì nhắc lại + hiện lại nút (watchdog: nút không bao giờ biến mất). */
+  function waitCast(my: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let quiet = performance.now();
+      const done = () => { clearInterval(dog); els.cast.removeEventListener('click', onClick); resolve(); };
+      const onClick = () => done();
+      const dog = window.setInterval(() => {
+        if (my !== token) { done(); return; }
+        if (performance.now() - quiet > 15000) {
+          quiet = performance.now();
+          showPanel(true);
+          els.cast.hidden = false;
+          void play('bubble');
+        }
+      }, 1000);
+      els.cast.addEventListener('click', onClick);
+    });
+  }
+
+  async function rescueBody(my: number): Promise<void> {
+    if (!hero || !level || !handles) return;
+    const def = level, hnd = handles, h = hero;
     huddleAt = { x: hnd.bubble.position.x, z: hnd.bubble.position.z };
-    h.locked = true; h.setMove(0, 0);
+    h.locked = true; h.stop();
     h.faceTo(hnd.bubble.position.x, hnd.bubble.position.z);
     await play('bubble');
     if (my !== token) return;
     showPanel(true);
     els.cast.hidden = false;
     if (DEBUG.rescue) await wait(600);
-    else await new Promise<void>((r) => els.cast.addEventListener('click', () => r(), { once: true }));
+    else await waitCast(my);
     if (my !== token) return;
     showPanel(false);
     void play('bigspell');
@@ -643,16 +745,8 @@ async function boot(): Promise<void> {
 
     if (who === 'ba-tuyet') await raiseSun(rescueActor, my);
     if (my !== token) return;
-
-    if (!progress.done.includes(def.id)) progress.done.push(def.id);
-    const idx = LEVELS.findIndex((l) => l.id === def.id);
-    progress.unlocked = Math.max(progress.unlocked, idx + 2);
-    saveProgress(progress);
     await play('level_done');
     await wait(400);
-    if (my !== token) return;
-    cleanup();
-    openMap();
   }
 
   /** Bà Tuyết (Celestia) bay lên kéo mặt trời: tia vàng lên trời, trời sáng hẳn. */
@@ -689,34 +783,69 @@ async function boot(): Promise<void> {
     openMap();
   });
 
-  // ---------- điều khiển: D-pad giữ để đi, ⬆ nhảy, phím mũi tên trên Mac ----------
-  const held = { up: false, down: false, left: false, right: false };
-  const applyMove = () => hero?.setMove((held.right ? 1 : 0) - (held.left ? 1 : 0), (held.down ? 1 : 0) - (held.up ? 1 : 0));
-  function bindHold(btn: HTMLButtonElement, key: keyof typeof held): void {
-    const down = (e: Event) => { e.preventDefault(); held[key] = true; btn.classList.add('down'); applyMove(); };
-    const up = () => { held[key] = false; btn.classList.remove('down'); applyMove(); };
-    btn.addEventListener('pointerdown', down);
-    btn.addEventListener('pointerup', up);
-    btn.addEventListener('pointercancel', up);
-    btn.addEventListener('pointerleave', up);
+  // ---------- điều khiển: chạm đất = Twilight chạy tới (giữ kéo thì đi theo ngón), nút nhảy + 🪽 bay to;
+  // Mac: phím mũi tên + Space nhảy + F bay. Port từ game 5. ----------
+  const canvas = world.renderer.domElement;
+  let dragging = false;
+  const canWalk = () => phase === 'play' && !!hero && !hero.locked && !inChallenge;
+  canvas.addEventListener('pointerdown', (e) => {
+    unlockAudio();
+    if (!canWalk() || !hero) return;
+    const g = world.groundAt(e.clientX, e.clientY);
+    if (!g) return;
+    const [x, z] = world.clampToIsland(g.x, g.z);
+    hero.goTo(x, z);
+    dragging = true;
+    hintT = 0;
+    spawnTapRing(x, z);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging || !canWalk() || !hero) return;
+    const g = world.groundAt(e.clientX, e.clientY);
+    if (g) { const [x, z] = world.clampToIsland(g.x, g.z); hero.goTo(x, z); }
+  });
+  const endDrag = () => { dragging = false; };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  function spawnTapRing(x: number, z: number): void {
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      world.magic.emit({ x, y: 0.15, z, color: 0xffd166, vx: Math.cos(a) * 1.6, vz: Math.sin(a) * 1.6, vy: 0.3, max: 0.5, size: 0.22, drag: 0.9 });
+    }
   }
-  bindHold(els.ctrlLeft, 'left');
-  bindHold(els.ctrlRight, 'right');
-  bindHold(els.ctrlUp, 'up');
-  bindHold(els.ctrlDown, 'down');
-  els.ctrlJump.addEventListener('pointerdown', (e) => { e.preventDefault(); if (hero?.jump()) sfx('sfx_tap', 0.4); });
-  const keyMap: Record<string, keyof typeof held> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+  const doJump = () => { if (canWalk() && hero?.jump()) sfx('sfx_tap', 0.4); };
+  const doFly = () => { if (canWalk() && hero?.fly()) { sfx(hero.flying ? 'sfx_win' : 'sfx_soft', 0.4); hintT = 0; } };
+  els.ctrlJump.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); doJump(); });
+  els.flyBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); unlockAudio(); doFly(); });
+  const held = { ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false };
+  const applyKeys = () => hero?.setMove((held.ArrowRight ? 1 : 0) - (held.ArrowLeft ? 1 : 0), (held.ArrowDown ? 1 : 0) - (held.ArrowUp ? 1 : 0));
   window.addEventListener('keydown', (e) => {
-    if (e.repeat) return;
-    const k = keyMap[e.key];
-    if (k) { held[k] = true; applyMove(); e.preventDefault(); }
-    if (e.key === ' ') { if (hero?.jump()) sfx('sfx_tap', 0.4); e.preventDefault(); }
+    if (e.key in held) { e.preventDefault(); if (e.repeat) return; held[e.key as keyof typeof held] = true; if (canWalk()) applyKeys(); }
+    if (e.key === ' ') { e.preventDefault(); if (!e.repeat) doJump(); }
+    if ((e.key === 'f' || e.key === 'F') && !e.repeat) doFly();
   });
-  window.addEventListener('keyup', (e) => {
-    const k = keyMap[e.key];
-    if (k) { held[k] = false; applyMove(); }
-  });
-  window.addEventListener('blur', () => { (Object.keys(held) as (keyof typeof held)[]).forEach((k) => (held[k] = false)); applyMove(); });
+  window.addEventListener('keyup', (e) => { if (e.key in held) { held[e.key as keyof typeof held] = false; if (canWalk()) applyKeys(); } });
+  window.addEventListener('blur', () => { for (const k of Object.keys(held)) held[k as keyof typeof held] = false; applyKeys(); });
+
+  // ---------- watchdog: khoá kẹt (không trong thử thách / cứu mà Twilight vẫn bị khoá > 15 s) → nhả ----------
+  window.setInterval(() => {
+    const now = performance.now();
+    if (!hero || phase !== 'play' || !hero.locked || inChallenge) { lockedSince = now; return; }
+    if (now - lockedSince > 15000) {
+      console.warn('[watchdog] nhả khoá Twilight bị kẹt');
+      hero.locked = false;
+      showControls(true);
+      lockedSince = now;
+    }
+  }, 1000);
+
+  const perf = () => ({ fps: Math.round(fps), tris: world.renderer.info.render.triangles, calls: world.renderer.info.render.calls,
+    geometries: world.renderer.info.memory.geometries, textures: world.renderer.info.memory.textures });
+  if (Q.has('perf')) {
+    const el = document.getElementById('perf')!;
+    el.hidden = false;
+    setInterval(() => { const p = perf(); el.textContent = `${p.fps} fps · ${(p.tris / 1000).toFixed(0)}k tam giác · ${p.calls} draw`; }, 500);
+  }
 
   // trạng thái cho công cụ chụp màn hình / debug
   (window as unknown as { __game: unknown }).__game = {
@@ -731,7 +860,10 @@ async function boot(): Promise<void> {
     get level() { return level; },
     get stars() { return stars; },
     get inChallenge() { return inChallenge; },
-    startLevel, progress,
+    get rescued() { return rescued; },
+    get answer() { return testHook.answer; },
+    get handles() { return handles; },
+    perf, startLevel, progress,
   };
 }
 

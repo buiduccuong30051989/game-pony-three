@@ -1,8 +1,10 @@
-// Nhân vật: ngựa Twilight (màn 1) hoặc Twilight người (màn 2). Đi 4 hướng trên đảo, nhảy, nhún-nhảy bằng code.
+// Nhân vật: ngựa Twilight (màn 1) hoặc Twilight người (màn 2). Chạm đất → chạy tới đó (giữ kéo ngón tay thì đi theo
+// ngón); phím mũi tên trên Mac. Nhảy, bay 🪽 ~4 s (port từ game 5), nhún-nhảy bằng code.
 import * as THREE from 'three';
 import type { HeroKind } from './data';
 import type { World } from './world';
 import { tween, easeOutQuad } from './tween';
+import { mergeByMaterial } from './merge';
 import { autoRigQuadruped, makeHumanWalker, type Walker, type WalkerPose } from './rig';
 
 interface HeroConfig {
@@ -16,13 +18,16 @@ interface HeroConfig {
 
 const CONFIGS: Record<HeroKind, HeroConfig> = {
   pony: { path: 'models/twilight_static/scene.gltf', height: 1.75, hornForward: 0.55, hornUp: 1.62, hop: 0.07 },
-  human: { path: 'models/twilight/scene.gltf', height: 2.0, hornForward: 0.15, hornUp: 2.05, hop: 0.05, fixHuman: true },
+  human: { path: 'models/twilight_eg.glb', height: 2.0, hornForward: 0.15, hornUp: 2.05, hop: 0.05, fixHuman: true },
 };
 
 const GRAVITY = 24;
 const JUMP_V = 8.5;
 const SPEED = 5.5;
 const TURN = 10; // rad/s xoay người
+/** độ cao bay (vừa phải: x/z luôn bị kẹp trong đảo nên không bay khỏi đảo) */
+const FLY_H = 2.2;
+const FLY_TIME = 4;
 
 export class Hero {
   readonly root = new THREE.Group();   // vị trí thế giới + hướng
@@ -46,11 +51,14 @@ export class Hero {
   private tailGoal = 0;
   private yawGoal: number | null = null;
   private readonly cfg: HeroConfig;
+  private goal: { x: number; z: number } | null = null;
 
   private constructor(readonly kind: HeroKind, model: THREE.Object3D) {
     this.cfg = CONFIGS[kind];
     this.pivot.add(model);
     this.root.add(this.pivot);
+    this.wings.position.y = this.cfg.height * 0.75;
+    this.root.add(this.wings);
   }
 
   static async load(world: World, kind: HeroKind): Promise<Hero> {
@@ -58,6 +66,8 @@ export class Hero {
     const { obj } = await world.instance(cfg.path);
     world.fitHeight(obj, cfg.height);
     if (cfg.fixHuman) Hero.fixHuman(obj, cfg.height);
+    // Twilight người: 48 mảnh lưới chung 1 bộ xương → gộp theo vật liệu (giữ xương để vung tay chân)
+    if (kind === 'human') mergeByMaterial(obj, undefined, true);
     const hero = new Hero(kind, obj);
     hero.walker = kind === 'pony' ? autoRigQuadruped(obj) : makeHumanWalker(obj, cfg.height);
     if (!hero.walker) console.warn('[hero] không rig được, dùng nhún-nhảy');
@@ -84,12 +94,71 @@ export class Hero {
 
   /** Vector di chuyển (-1..1 mỗi trục), z dương = về phía camera. */
   setMove(dx: number, dz: number): void {
+    this.goal = null;
     if (this.locked) { this.mx = this.mz = 0; return; }
     const len = Math.hypot(dx, dz);
     if (len > 1e-3) { this.mx = dx / len; this.mz = dz / len; } else { this.mx = this.mz = 0; }
   }
 
+  /** Chạy tới điểm (chạm đất). */
+  goTo(x: number, z: number): void {
+    if (this.locked) return;
+    this.goal = { x, z };
+  }
+  /** Dừng mọi di chuyển. */
+  stop(): void { this.goal = null; this.mx = this.mz = 0; }
+
   get moving(): boolean { return (this.mx !== 0 || this.mz !== 0) && !this.locked; }
+
+  /** Đang bay (nút 🪽): ~4 s, cao FLY_H, đi bằng chạm như thường; hạ cánh nhẹ, nghỉ 1.2 s mới bay lại. */
+  flying = false;
+  private landing = false;
+  private flyT = 0;
+  private flyCool = 0;
+  /** đôi cánh ánh sáng vỗ khi bay */
+  readonly wings: THREE.Sprite = Hero.makeWings();
+  get canFly(): boolean { return !this.locked && !this.flying && !this.landing && this.flyCool <= 0; }
+  get airborne(): boolean { return this.flying || this.landing || !this.grounded; }
+
+  /** Bấm 🪽: cất cánh (đang bay thì hạ cánh). */
+  fly(): boolean {
+    if (this.flying) { this.land(); return true; }
+    if (!this.canFly) return false;
+    this.flying = true;
+    this.flyT = FLY_TIME;
+    this.grounded = false;
+    this.vy = 0;
+    return true;
+  }
+  /** Hạ cánh nhẹ (hết giờ, bấm lại, bị khoá, hoặc tới chỗ quái / bong bóng). */
+  land(): void {
+    if (!this.flying) return;
+    this.flying = false;
+    this.landing = true;
+    this.flyCool = 1.2;
+  }
+
+  private static makeWings(): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    const g = c.getContext('2d')!;
+    for (const s of [-1, 1]) {
+      const grad = g.createRadialGradient(256 + s * 120, 128, 10, 256 + s * 120, 128, 140);
+      grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      grad.addColorStop(0.5, 'rgba(230,190,255,0.6)');
+      grad.addColorStop(1, 'rgba(230,190,255,0)');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.ellipse(256 + s * 130, 120, 130, 66, s * -0.4, 0, Math.PI * 2);
+      g.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    sp.position.set(0, 1.35, -0.1);
+    sp.visible = false;
+    return sp;
+  }
 
   jump(): boolean {
     if (this.locked || !this.grounded) return false;
@@ -142,10 +211,20 @@ export class Hero {
 
   update(dt: number, clamp: (x: number, z: number) => [number, number]): void {
     this.t += dt;
+    if (this.locked) this.goal = null;
+    if (this.goal) {
+      const dx = this.goal.x - this.x, dz = this.goal.z - this.z, d = Math.hypot(dx, dz);
+      if (d < 0.25) { this.goal = null; this.mx = this.mz = 0; }
+      else { this.mx = dx / d; this.mz = dz / d; }
+    }
     if (this.moving) {
-      this.x += this.mx * SPEED * dt;
-      this.z += this.mz * SPEED * dt;
+      const px = this.x, pz = this.z;
+      const sp = this.flying ? SPEED * 1.15 : SPEED;
+      this.x += this.mx * sp * dt;
+      this.z += this.mz * sp * dt;
       [this.x, this.z] = clamp(this.x, this.z);
+      // kẹt ở mép đảo → bỏ đích để không chạy tại chỗ mãi
+      if (this.goal && Math.hypot(this.x - px, this.z - pz) < SPEED * dt * 0.05) { this.goal = null; this.mx = this.mz = 0; }
       const target = Math.atan2(this.mx, this.mz);
       let d = target - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
@@ -159,13 +238,29 @@ export class Hero {
       L.pitch += (this.pitchGoal - L.pitch) * r;
       L.tail += (this.tailGoal - L.tail) * r;
     }
-    if (!this.grounded) {
+    this.flyCool = Math.max(0, this.flyCool - dt);
+    if (this.flying) {
+      // bay: lên êm tới FLY_H; hết giờ (hoặc bị khoá) thì hạ cánh nhẹ
+      this.flyT -= dt;
+      this.y += (FLY_H + Math.sin(this.t * 3) * 0.12 - this.y) * Math.min(1, dt * 2.5);
+      if (this.flyT <= 0 || this.locked) this.land();
+    } else if (this.landing) {
+      this.y = Math.max(0, this.y - dt * 1.9);
+      if (this.y <= 0) { this.landing = false; this.grounded = true; this.vy = 0; this.landSquash = 1; }
+    } else if (!this.grounded) {
       this.vy -= GRAVITY * dt;
       this.y += this.vy * dt;
       if (this.y <= 0) { this.y = 0; this.vy = 0; this.grounded = true; this.landSquash = 1; }
     }
     this.root.position.set(this.x, this.y, this.z);
     this.root.rotation.y = this.yaw;
+    const air = this.flying || this.landing;
+    this.wings.visible = air;
+    if (air) {
+      const flap = 0.75 + 0.25 * Math.sin(this.t * 13);
+      const k = Math.min(1, this.y / FLY_H + 0.2);
+      this.wings.scale.set(3.4 * flap * k, 1.9 * k, 1);
+    }
     const target = this.moving && this.grounded ? 1 : 0;
     this.walkK += (target - this.walkK) * Math.min(1, dt * 10);
     this.pose = (this.walker?.update(this.t, this.walkK, this.yaw) as WalkerPose | undefined) ?? null;
