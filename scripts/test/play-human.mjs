@@ -66,6 +66,17 @@ while (Date.now() - t0 < 480000) {
   });
   if (!st) { await sleep(300); continue; }
   if (process.env.DEBUG) console.log(JSON.stringify({ ...st, tris: undefined }));
+  if (process.env.PEAK && st.calls > maxCalls) {
+    const bd = await page.evaluate(() => {
+      const g = window.__game, sc = g.world.scene, out = {};
+      const tag = new Map([...(g.followers || []), ...(g.loose || [])].map((a) => [a.root, a.id]));
+      if (g.hero) tag.set(g.hero.root, 'hero');
+      sc.traverseVisible((o) => { if (!(o.isMesh || o.isSprite || o.isPoints)) return; let p = o; while (p.parent && p.parent !== sc && !tag.has(p)) p = p.parent;
+        const k = tag.get(p) ?? `${p.type}:${p.children.length}`; out[k] = (out[k] || 0) + 1; });
+      return Object.entries(out).sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, v]) => `${k}=${v}`).join(' ');
+    });
+    console.log(`peak ${st.calls} @ ${st.phase} inCh=${st.inCh} stars=${st.stars} cast=${st.cast}: ${bd}`);
+  }
   maxTris = Math.max(maxTris, st.tris); maxCalls = Math.max(maxCalls, st.calls);
   const key = `${st.phase}|${st.bp}|${st.stars}|${st.inCh}|${st.answer}|${st.hero?.x},${st.hero?.z}|${st.opts.join()}|${st.gems}|${st.cast}|${st.fam}`;
   if (key !== lastKey) { lastKey = key; lastChange = Date.now(); }
