@@ -1,5 +1,6 @@
 // Quái vật tròn dễ thương: thân cầu + mắt to + chân nhỏ. Bị phép thì tan thành bươm bướm.
 import * as THREE from 'three';
+import { mergeByMaterial } from './merge';
 import type { ChallengeKind } from './data';
 import type { World } from './world';
 import type { Actor } from './actors';
@@ -62,6 +63,8 @@ export class Monster {
       this.group.add(h);
     }
 
+    // iPad: gộp mặt / chân / sừng theo vật liệu (16 → 6 draw call), thân giữ riêng vì nhún
+    mergeByMaterial(this.group, new Set([this.body]));
     this.group.position.set(x, 0, z);
     world.scene.add(this.group);
   }

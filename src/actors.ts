@@ -6,6 +6,7 @@ import type { World } from './world';
 import { autoRigQuadruped, makeFlyer, type Walker, type WalkerPose } from './rig';
 import { tween, easeOutQuad, easeInOutSine } from './tween';
 import { paintEyes } from './eyes';
+import { mergeByMaterial } from './merge';
 
 const GRAVITY = 24;
 const RAINBOW = [0xff4d5e, 0xff9a2e, 0xffe066, 0x5bd96b, 0x4fb3ff, 0x9b6bff];
@@ -32,6 +33,19 @@ function blobShadow(radius: number): THREE.Mesh {
   m.rotation.x = -Math.PI / 2;
   m.renderOrder = 1;
   return m;
+}
+
+/** Lưới thân (chạm đất, nhiều đỉnh nhất) — cùng cách chọn với autoRigQuadruped → để nguyên khi gộp. */
+function bodyOf(model: THREE.Object3D): THREE.Mesh[] {
+  model.updateMatrixWorld(true);
+  const whole = new THREE.Box3().setFromObject(model, true);
+  const H = whole.max.y - whole.min.y;
+  const meshes: THREE.Mesh[] = [];
+  model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry?.attributes.position) meshes.push(m); });
+  const body = meshes
+    .filter((m) => new THREE.Box3().setFromObject(m, true).min.y < whole.min.y + H * 0.05)
+    .sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count)[0];
+  return body ? [body] : [];
 }
 
 export class Actor {
@@ -69,6 +83,10 @@ export class Actor {
     this.root.add(this.blob);
   }
   private readonly blob: THREE.Mesh;
+  /** Bỏ bóng tròn dưới chân (đám đông trận cuối: bớt draw call). */
+  hideBlob(): void { this.blob.visible = false; }
+  /** geometry gộp tạo riêng cho actor này (dispose khi bỏ) */
+  merged: THREE.BufferGeometry[] = [];
 
   get id(): CastId { return this.def.id; }
   get flyer(): boolean { return this.def.kind === 'flyer'; }
@@ -89,11 +107,16 @@ export class Actor {
       if (def.eyes) paintEyes(obj, def.eyes.mat, def.eyes.iris);
       let skinned = false;
       obj.traverse((o) => { o.castShadow = false; if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned = true; });
+      // iPad: gộp mảnh lưới cùng vật liệu (công chúa bay giữ xương để vỗ cánh; thân pony giữ riêng để auto-rig)
+      let merged: THREE.BufferGeometry[] = [];
+      if (def.kind === 'flyer') merged = mergeByMaterial(obj, undefined, true);
+      else merged = mergeByMaterial(obj, skinned ? undefined : new Set(bodyOf(obj)));
       let walker: (Walker & { flap?: number }) | null = null;
       // pony có xương sẵn (VV2006, G5...) thì không auto-rig được (đè xương) → nhún nhảy bằng pivot như Spike
       if (def.kind === 'pony' && !skinned) walker = autoRigQuadruped(obj);
       else if (def.kind === 'flyer') walker = makeFlyer(obj);
       actor = new Actor(world, def, walker, null);
+      actor.merged = merged;
       actor.pivot.add(obj);
       if (def.kind === 'flyer') { actor.hover = 0.55; actor.y = actor.hover; }
     }
@@ -287,6 +310,7 @@ export class Actor {
     this.root.removeFromParent();
     this.root.traverse((o) => { const sm = o as THREE.SkinnedMesh; if (sm.isSkinnedMesh) sm.skeleton.dispose(); });
     this.blob.geometry.dispose();
+    for (const g of this.merged) g.dispose();
     (this.blob.material as THREE.Material).dispose();
   }
 

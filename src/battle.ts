@@ -169,9 +169,12 @@ export class FinalBattle {
       a.place(x, z, 0);
       a.faceTo(BOSS_SPOT.x, BOSS_SPOT.z + BOSS_HOVER);
       a.idleOn = true;
+      a.hideBlob(); // iPad: bạn đứng xa không cần bóng tròn (bớt 1 draw call / bạn)
       this.world.scene.add(a.root);
     });
     this.world.setCamera(BATTLE_CAM.pos, BATTLE_CAM.look, true, BATTLE_CAM.fov);
+    // iPad: trận cuối tắt bóng đổ thật (đỡ cả 1 lượt vẽ shadow map), ai cũng có bóng tròn mờ
+    this.world.setShadows(false);
     // đèn tím dịu soi mặt Nightmare Moon (bộ lông đen) cho bé nhìn rõ
     this.glow = new THREE.PointLight(0xd9ccff, 30, 14, 1.5);
     this.glow.position.set(0, BOSS_HOVER + BOSS_H * 0.6, BOSS_SPOT.z + 4);
@@ -424,5 +427,6 @@ export class FinalBattle {
     for (const a of this.crowd) this.world.scene.remove(a.root);
     for (const a of this.friends) this.world.scene.remove(a.root);
     this.world.setCamera(null);
+    this.world.setShadows(true);
   }
 }

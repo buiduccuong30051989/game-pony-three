@@ -1,9 +1,11 @@
-// Thế giới 3D: đảo ellipse giữa biển, camera bám sau lưng nhân vật, props Kenney, ngọc, bong bóng,
+// Thế giới 3D: đảo ellipse giữa biển, camera bám sau lưng nhân vật (lùi xa như game 5: offset 14 / 18.4), props Kenney
+// (props tĩnh GỘP theo vật liệu → ít draw call cho iPad), ngọc, bong bóng,
 // ngày/đêm (Nightmare Moon phủ đêm, cứu bà Tuyết thì mặt trời lên), bướm, chim, đom đóm, cỏ hoa đung đưa,
 // lâu đài mặt trăng cho màn cuối.
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PALETTE, type LevelDef } from './data';
 import { Magic } from './magic';
 import { tween, updateTweens, easeInOutSine } from './tween';
@@ -31,7 +33,8 @@ function mulberry32(seed: number) {
   };
 }
 
-const CAM_OFFSET = new THREE.Vector3(0, 9.5, 12.5);
+/** Camera bám nhân vật: lùi xa như game 5 (game cũ 9.5 / 12.5) để thấy cả hàng bạn + quái + bong bóng phía trước. */
+export const CAM_OFFSET = new THREE.Vector3(0, 14.0, 18.4);
 const lerpHex = (a: number, b: number, k: number, out = new THREE.Color()) => out.setHex(a).lerp(new THREE.Color(b), k);
 
 interface Swayer { obj: THREE.Object3D; phase: number; amp: number }
@@ -65,6 +68,9 @@ export class World {
   private sunDisc!: THREE.Sprite;
   private stars!: THREE.Points;
   private readonly cloudMat = new THREE.MeshStandardMaterial({ color: PALETTE.cloud, roughness: 1 });
+  private cloudMesh!: THREE.InstancedMesh;
+  private readonly ray = new THREE.Raycaster();
+  private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   /** 0 = ngày, 1 = đêm */
   night = 0;
   // sinh vật / cây cỏ của màn hiện tại
@@ -80,6 +86,7 @@ export class World {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     // iPad: DPR 2 → giới hạn 1.5 cho nhẹ (vẫn nét nhờ antialias)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.info.autoReset = true;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -108,7 +115,7 @@ export class World {
     const sun = new THREE.DirectionalLight(0xfff5e2, 2.4);
     sun.position.set(8, 16, 10);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -18; sun.shadow.camera.right = 18;
     sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
@@ -160,28 +167,39 @@ export class World {
     this.scene.add(water);
 
     const rnd = mulberry32(7);
-    for (let i = 0; i < 22; i++) {
-      const far = i % 2 === 0;
+    // đồi xa: 2 InstancedMesh (gần / xa) → 2 draw call thay vì 22
+    const hillGeo = new THREE.SphereGeometry(1, 20, 10);
+    for (const far of [false, true]) {
       const mat = new THREE.MeshStandardMaterial({ color: far ? PALETTE.hillFar : PALETTE.hill, roughness: 1 });
       this.hillMats.push({ mat, far });
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(far ? 22 + rnd() * 12 : 12 + rnd() * 8, 24, 12), mat);
-      hill.scale.y = 0.4;
-      hill.position.set(-120 + i * 12 + rnd() * 6, -4, far ? -110 - rnd() * 20 : -75 - rnd() * 12);
-      this.scene.add(hill);
+      const im = new THREE.InstancedMesh(hillGeo, mat, 11);
+      const m4 = new THREE.Matrix4();
+      for (let k = 0; k < 11; k++) {
+        const i = k * 2 + (far ? 0 : 1);
+        const r = far ? 22 + rnd() * 12 : 12 + rnd() * 8;
+        m4.compose(new THREE.Vector3(-120 + i * 12 + rnd() * 6, -4, far ? -110 - rnd() * 20 : -75 - rnd() * 12), new THREE.Quaternion(), new THREE.Vector3(r, r * 0.4, r));
+        im.setMatrixAt(k, m4);
+      }
+      im.frustumCulled = false;
+      this.scene.add(im);
     }
-    const m = this.cloudMat;
+    // mây: 1 InstancedMesh (14 cụm × 4 cục) trôi ngang → 1 draw call
+    this.cloudMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), this.cloudMat, 56);
+    this.cloudMesh.frustumCulled = false;
     for (let i = 0; i < 14; i++) {
       const g = new THREE.Group();
       for (let k = 0; k < 4; k++) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(1.6 + rnd() * 1.4, 14, 10), m);
+        const s = new THREE.Object3D();
+        s.scale.setScalar(1.6 + rnd() * 1.4);
         s.position.set(k * 2 - 3, rnd() * 0.8, 0);
         g.add(s);
       }
       g.position.set(-90 + i * 14 + rnd() * 8, 16 + rnd() * 8, -50 - rnd() * 40);
       g.userData.speed = 0.3 + rnd() * 0.4;
-      this.scene.add(g);
       this.clouds.push(g);
     }
+    this.scene.add(this.cloudMesh);
+    this.updateClouds();
 
     this.moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTexture('#f4f2ff', 'rgba(200,205,255,0.55)', true), transparent: true, depthWrite: false }));
     this.moon.scale.setScalar(34);
@@ -373,6 +391,9 @@ export class World {
     const inside = (x: number, z: number, margin: number) => Math.hypot(x / (rx - margin), z / (rz - margin)) < 1;
 
     const jobs: Promise<unknown>[] = [];
+    // props tĩnh vào `statics` → gộp theo vật liệu sau khi tải (vài draw call thay vì vài trăm)
+    const statics = new THREE.Group();
+    group.add(statics);
     const trees = ['tree_default', 'tree_fat', 'tree_oak', 'tree_small'];
     const plants = ['plant_bush', 'plant_bushSmall', 'rock_smallA', 'mushroom_red', 'grass', 'grass_large'];
     const flowers = ['flower_yellowA', 'flower_redA', 'flower_purpleA'];
@@ -387,7 +408,7 @@ export class World {
       if (edge < 0.55 && rnd() < 0.7) continue;
       const s = 1.4 + rnd() * 0.7;
       const picks = apples ? [0, 1, 2].map(() => [rnd(), rnd(), rnd()]) : [];
-      jobs.push(this.addProp(group, trees[Math.floor(rnd() * trees.length)] + '.glb', x, z, s, rnd()).then((tree) => {
+      jobs.push(this.addProp(statics, trees[Math.floor(rnd() * trees.length)] + '.glb', x, z, s, rnd()).then((tree) => {
         if (!picks.length) return;
         // vườn táo của ông Cương (Applejack): táo bám quanh tán lá thật của cây
         const box = new THREE.Box3().setFromObject(tree);
@@ -409,11 +430,14 @@ export class World {
       if (!inside(x, z, 1.5) || !free(x, z)) continue;
       const isFlower = rnd() < flowerK;
       const name = isFlower ? flowers[Math.floor(rnd() * flowers.length)] : plants[Math.floor(rnd() * plants.length)];
-      const sway = isFlower ? 0.12 : name.startsWith('grass') || name.startsWith('plant') ? 0.07 : 0;
-      jobs.push(this.addProp(group, name + '.glb', x, z, 0.8 + rnd() * 0.6, undefined, sway));
+      // chỉ 1/8 số cỏ hoa đung đưa (mỗi cây đung đưa = 1 draw call riêng), còn lại gộp tĩnh
+      const sway = placed % 8 ? 0 : isFlower ? 0.12 : name.startsWith('grass') || name.startsWith('plant') ? 0.07 : 0;
+      jobs.push(this.addProp(sway ? group : statics, name + '.glb', x, z, 0.8 + rnd() * 0.6, undefined, sway, false));
       placed++;
     }
     await Promise.all(jobs);
+    if (def.final) this.buildCastle(statics);
+    this.mergeStatic(statics);
 
     // emoji trang trí theo chủ đề màn
     const deco = (th.deco ?? []).filter((d) => d !== '🍎' && d !== '🍏');
@@ -459,7 +483,6 @@ export class World {
       this.birds.push({ g, wings, vx: 2.5 + rnd() * 1.5, phase: rnd() * 6 });
     }
 
-    if (def.final) this.buildCastle(group);
 
     // ngọc
     const gemGeo = new THREE.OctahedronGeometry(0.32, 0);
@@ -587,8 +610,10 @@ export class World {
     group.add(castle);
   }
 
-  private async addProp(group: THREE.Group, name: string, x: number, z: number, scale: number, tint?: number, sway = 0): Promise<THREE.Object3D> {
+  private async addProp(group: THREE.Group, name: string, x: number, z: number, scale: number, tint?: number, sway = 0, cast = true): Promise<THREE.Object3D> {
     const { obj } = await this.instance('models/' + name);
+    // cỏ hoa nhỏ không đổ bóng thật (đỡ 1 lượt vẽ vào shadow map / mỗi draw call)
+    if (!cast) obj.traverse((o) => { o.castShadow = false; });
     obj.position.set(x, 0, z);
     obj.rotation.y = Math.random() * Math.PI * 2;
     obj.scale.setScalar(scale);
@@ -614,6 +639,67 @@ export class World {
     }
     group.add(obj);
     return obj;
+  }
+
+  /** Gộp mọi mesh tĩnh trong `g` theo vật liệu → vài draw call thay vì vài trăm (port từ game 5). */
+  private mergeStatic(g: THREE.Group): void {
+    g.updateMatrixWorld(true);
+    const buckets = new Map<string, { mat: THREE.Material; geos: THREE.BufferGeometry[]; cast: boolean }>();
+    const remove: THREE.Mesh[] = [];
+    g.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || Array.isArray(m.material) || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh) return;
+      const geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+      for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k);
+      if (!geo.attributes.normal) geo.computeVertexNormals();
+      geo.applyMatrix4(m.matrixWorld);
+      // gộp theo THUỘC TÍNH vật liệu (Kenney: mỗi file GLB có vật liệu riêng dù cùng màu) → ít nhóm hơn
+      const mm = m.material as THREE.MeshStandardMaterial;
+      const key = mm.map ? mm.uuid : `${mm.type}|${mm.color?.getHexString()}|${mm.emissive?.getHexString()}|${mm.transparent}|${mm.side}`;
+      const sig = `${key}|${Object.keys(geo.attributes).sort().join(',')}|${m.castShadow}`;
+      let b = buckets.get(sig);
+      if (!b) { b = { mat: m.material, geos: [], cast: m.castShadow }; buckets.set(sig, b); }
+      b.geos.push(geo);
+      remove.push(m);
+    });
+    for (const m of remove) m.removeFromParent();
+    for (const b of buckets.values()) {
+      const merged = mergeGeometries(b.geos, false);
+      for (const geo of b.geos) geo.dispose();
+      if (!merged) continue;
+      const mesh = new THREE.Mesh(merged, b.mat);
+      mesh.castShadow = b.cast;
+      mesh.receiveShadow = true;
+      g.add(mesh);
+    }
+  }
+
+  private updateClouds(): void {
+    let i = 0;
+    for (const g of this.clouds) {
+      g.updateMatrixWorld(true);
+      for (const s of g.children) this.cloudMesh.setMatrixAt(i++, s.matrixWorld);
+    }
+    this.cloudMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Bật / tắt bóng đổ thật (trận cuối tắt để giữ ngân sách draw call). */
+  setShadows(on: boolean): void { this.sun.castShadow = on; }
+
+  // ---------- chạm ----------
+  private setRay(px: number, py: number): void {
+    const v = new THREE.Vector2((px / window.innerWidth) * 2 - 1, -(py / window.innerHeight) * 2 + 1);
+    this.ray.setFromCamera(v, this.camera);
+  }
+  /** Điểm trên mặt đất (y = 0) dưới ngón tay. */
+  groundAt(px: number, py: number): THREE.Vector3 | null {
+    this.setRay(px, py);
+    return this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3());
+  }
+  /** Chiếu điểm thế giới ra px màn hình (test / debug). */
+  toScreen(p: THREE.Vector3): { x: number; y: number } {
+    const v = p.clone().project(this.camera);
+    return { x: (v.x + 1) / 2 * window.innerWidth, y: (1 - v.y) / 2 * window.innerHeight };
   }
 
   start(update: (dt: number) => void): void {
@@ -650,7 +736,7 @@ export class World {
       this.sun.target.position.set(0, 0, 0);
     } else {
       this.camera.position.copy(this.camTarget).add(CAM_OFFSET);
-      this.camLook.set(this.camTarget.x, 1.0, this.camTarget.z);
+      this.camLook.set(this.camTarget.x, 1.0, this.camTarget.z - 1.2);
       this.camera.lookAt(this.camLook);
       this.sun.position.set(this.camTarget.x + 8, 16, this.camTarget.z + 10);
       this.sun.target.position.set(this.camTarget.x, 0, this.camTarget.z);
@@ -659,6 +745,7 @@ export class World {
       c.position.x += c.userData.speed * dt;
       if (c.position.x > 110) c.position.x -= 220;
     }
+    this.updateClouds();
     if (!this.level) return;
     for (const g of this.level.gems) {
       if (g.taken) continue;
