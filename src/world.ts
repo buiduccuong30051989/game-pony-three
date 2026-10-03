@@ -69,6 +69,7 @@ export class World {
   private stars!: THREE.Points;
   private readonly cloudMat = new THREE.MeshStandardMaterial({ color: PALETTE.cloud, roughness: 1 });
   private cloudMesh!: THREE.InstancedMesh;
+  private gemMesh: THREE.InstancedMesh | null = null;
   private readonly ray = new THREE.Raycaster();
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   /** 0 = ngày, 1 = đêm */
@@ -317,6 +318,16 @@ export class World {
   }
 
   private readonly emojiTex = new Map<string, THREE.CanvasTexture>();
+  /** Nhiều emoji tĩnh cùng loại = 1 Points (1 draw call); `size` ~ cỡ emojiSprite tương ứng (camera fov 38). */
+  emojiPoints(emoji: string, pos: number[], size: number): THREE.Points {
+    this.emojiSprite(emoji).material.dispose(); // tạo texture nếu chưa có
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ map: this.emojiTex.get(emoji)!, size: size / Math.tan(THREE.MathUtils.degToRad(38) / 2), sizeAttenuation: true,
+      transparent: true, alphaTest: 0.2, depthWrite: false });
+    return new THREE.Points(geo, mat);
+  }
+
   emojiSprite(emoji: string, size = 1): THREE.Sprite {
     let tex = this.emojiTex.get(emoji);
     if (!tex) {
@@ -398,6 +409,14 @@ export class World {
     const plants = ['plant_bush', 'plant_bushSmall', 'rock_smallA', 'mushroom_red', 'grass', 'grass_large'];
     const flowers = ['flower_yellowA', 'flower_redA', 'flower_purpleA'];
     const apples = !!th.deco?.some((d) => d === '🍎' || d === '🍏');
+    // emoji tĩnh (táo trên cây, đồ trang trí) gom theo emoji → 1 draw call / loại (iPad), thay vì 1 sprite / quả
+    const dots = new Map<string, { pos: number[]; size: number }>();
+    const dot = (e: string, x: number, y: number, z: number, size: number) => {
+      let d = dots.get(e);
+      if (!d) { d = { pos: [], size: 0 }; dots.set(e, d); }
+      d.pos.push(x, y, z);
+      d.size += size;
+    };
     let placed = 0, tries = 0;
     const treeCount = def.final ? 10 : 26;
     while (placed < treeCount && tries++ < 400) {
@@ -415,9 +434,7 @@ export class World {
         const h = box.max.y, w = (box.max.x - box.min.x) * 0.42;
         for (const [a, b, c] of picks) {
           const ang = a * Math.PI * 2;
-          const sp = this.emojiSprite(c < 0.7 ? '🍎' : '🍏', 0.5);
-          sp.position.set(x + Math.cos(ang) * w, h * (0.6 + b * 0.25), z + Math.sin(ang) * w);
-          group.add(sp);
+          dot(c < 0.7 ? '🍎' : '🍏', x + Math.cos(ang) * w, h * (0.6 + b * 0.25), z + Math.sin(ang) * w, 0.5);
         }
       }));
       keep.push([x, z, 2.2]);
@@ -430,8 +447,8 @@ export class World {
       if (!inside(x, z, 1.5) || !free(x, z)) continue;
       const isFlower = rnd() < flowerK;
       const name = isFlower ? flowers[Math.floor(rnd() * flowers.length)] : plants[Math.floor(rnd() * plants.length)];
-      // chỉ 1/8 số cỏ hoa đung đưa (mỗi cây đung đưa = 1 draw call riêng), còn lại gộp tĩnh
-      const sway = placed % 8 ? 0 : isFlower ? 0.12 : name.startsWith('grass') || name.startsWith('plant') ? 0.07 : 0;
+      // chỉ 1/16 số cỏ hoa đung đưa (mỗi cây đung đưa = 1 draw call riêng), còn lại gộp tĩnh
+      const sway = placed % 16 ? 0 : isFlower ? 0.12 : name.startsWith('grass') || name.startsWith('plant') ? 0.07 : 0;
       jobs.push(this.addProp(sway ? group : statics, name + '.glb', x, z, 0.8 + rnd() * 0.6, undefined, sway, false));
       placed++;
     }
@@ -448,13 +465,16 @@ export class World {
       const e = deco[placed % deco.length];
       const cloud = e === '☁️';
       const size = cloud ? 2.2 + rnd() : 0.7 + rnd() * 0.4;
-      const sp = this.emojiSprite(e, size);
       const h = cloud ? 4.5 + rnd() * 2 : 0.45;
-      sp.position.set(x, h, z);
-      group.add(sp);
-      this.fliers.push({ sp, ax: x, az: z, phase: rnd() * 6, r: 0, speed: 0, h, size });
+      if (cloud) {
+        const sp = this.emojiSprite(e, size);
+        sp.position.set(x, h, z);
+        group.add(sp);
+        this.fliers.push({ sp, ax: x, az: z, phase: rnd() * 6, r: 0, speed: 0, h, size });
+      } else dot(e, x, h, z, size);
       placed++;
     }
+    for (const [e, d] of dots) group.add(this.emojiPoints(e, d.pos, d.size / (d.pos.length / 3)));
 
     // bướm (ban đêm vẫn bay — Equestria mà), màn cuối là đốm sao
     const flyEmoji = def.final ? '✨' : '🦋';
@@ -484,14 +504,17 @@ export class World {
     }
 
 
-    // ngọc
+    // ngọc: 1 InstancedMesh (1 draw call); `mesh` của mỗi ngọc là Object3D ảo (vị trí / ẩn) → follow() chép vào instance
     const gemGeo = new THREE.OctahedronGeometry(0.32, 0);
     const gemMat = new THREE.MeshStandardMaterial({ color: 0x7fd8ff, emissive: 0x2a8fd8, emissiveIntensity: 0.6, roughness: 0.3 });
+    this.gemMesh = new THREE.InstancedMesh(gemGeo, gemMat, Math.max(1, def.gems.length));
+    this.gemMesh.count = def.gems.length;
+    this.gemMesh.castShadow = true;
+    this.gemMesh.frustumCulled = false;
+    group.add(this.gemMesh);
     const gems: Gem[] = def.gems.map(([x, z]) => {
-      const mesh = new THREE.Mesh(gemGeo, gemMat);
+      const mesh = new THREE.Mesh();
       mesh.position.set(x, 1.0, z);
-      mesh.castShadow = true;
-      group.add(mesh);
       return { x, z, mesh, taken: false };
     });
 
@@ -650,15 +673,28 @@ export class World {
       const m = o as THREE.Mesh;
       if (!m.isMesh || Array.isArray(m.material) || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh) return;
       const geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
-      for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k);
+      const keepUv = !!(m.material as THREE.MeshStandardMaterial).map;
+      for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', ...(keepUv ? ['uv'] : [])].includes(k)) geo.deleteAttribute(k);
       if (!geo.attributes.normal) geo.computeVertexNormals();
       geo.applyMatrix4(m.matrixWorld);
-      // gộp theo THUỘC TÍNH vật liệu (Kenney: mỗi file GLB có vật liệu riêng dù cùng màu) → ít nhóm hơn
+      // vật liệu trơn (Kenney: mỗi file GLB / mỗi cây tô lệch màu có vật liệu riêng) → màu chép vào màu đỉnh, gộp chung
+      // 1 vật liệu vertexColors → vài draw call cho cả đảo
       const mm = m.material as THREE.MeshStandardMaterial;
-      const key = mm.map ? mm.uuid : `${mm.type}|${mm.color?.getHexString()}|${mm.emissive?.getHexString()}|${mm.transparent}|${mm.side}`;
+      let key = mm.uuid;
+      if (!mm.map && !mm.transparent) {
+        const n = geo.attributes.position.count, col = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) col.set([mm.color.r, mm.color.g, mm.color.b], i * 3);
+        geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        key = `solid|${mm.type}|${mm.emissive?.getHexString()}|${mm.side}`;
+      }
       const sig = `${key}|${Object.keys(geo.attributes).sort().join(',')}|${m.castShadow}`;
       let b = buckets.get(sig);
-      if (!b) { b = { mat: m.material, geos: [], cast: m.castShadow }; buckets.set(sig, b); }
+      if (!b) {
+        let bm: THREE.Material = m.material;
+        if (key.startsWith('solid|')) { const c = mm.clone(); c.color.setRGB(1, 1, 1); c.vertexColors = true; bm = c; }
+        b = { mat: bm, geos: [], cast: m.castShadow };
+        buckets.set(sig, b);
+      }
       b.geos.push(geo);
       remove.push(m);
     });
@@ -747,11 +783,16 @@ export class World {
     }
     this.updateClouds();
     if (!this.level) return;
-    for (const g of this.level.gems) {
-      if (g.taken) continue;
-      g.mesh.rotation.y += dt * 2;
-      g.mesh.position.y = 1.0 + Math.sin(t * 3 + g.x) * 0.12;
-    }
+    this.level.gems.forEach((g, i) => {
+      if (!g.taken) {
+        g.mesh.rotation.y += dt * 2;
+        g.mesh.position.y = 1.0 + Math.sin(t * 3 + g.x) * 0.12;
+      }
+      g.mesh.scale.setScalar(g.taken || !g.mesh.visible ? 0.0001 : 1);
+      g.mesh.updateMatrix();
+      this.gemMesh?.setMatrixAt(i, g.mesh.matrix);
+    });
+    if (this.gemMesh) this.gemMesh.instanceMatrix.needsUpdate = true;
     const b = this.level.bubble;
     b.position.y = (b.userData.baseY ?? 1.9) + Math.sin(t * 1.6) * 0.18;
     // cỏ hoa đung đưa theo gió

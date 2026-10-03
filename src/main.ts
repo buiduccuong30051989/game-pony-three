@@ -78,6 +78,8 @@ const SPIKE_TEXT: Record<string, string> = {
  * bóng → được cứu → đi theo tới hết màn) + bộ sưu tập + màn kết, không đi hàng ở màn khác / đứng ở trận cuối (iPad).
  */
 const HEAVY_FRIENDS: FriendId[] = ['sunny', 'sunset', 'starlight', 'pipp', 'zipp'];
+/** Tổng draw call tối đa của các bạn pony đang đi trong hàng (ngoài người nhà). */
+const PARADE_FRIEND_CALLS = 24;
 
 interface Progress { unlocked: number; done: string[]; /** bạn pony đã cứu (theo thứ tự cứu) */ friends: FriendId[] }
 function loadProgress(): Progress {
@@ -262,6 +264,13 @@ async function boot(): Promise<void> {
    */
   function finaleFriends(): FriendId[] {
     return progress.friends.filter((f) => !HEAVY_FRIENDS.includes(f)).slice(-10);
+  }
+
+  /** Số draw call 1 người trong hàng (số lưới đang hiện). */
+  function drawCost(a: Actor): number {
+    let n = 0;
+    a.root.traverseVisible((o) => { if ((o as THREE.Mesh).isMesh || (o as THREE.Sprite).isSprite) n++; });
+    return n;
   }
 
   /** Bạn đi trong hàng ở màn `def`: bạn đã cứu ở màn khác, mới nhất trước, vừa đủ chỗ trống sau người nhà. */
@@ -617,10 +626,13 @@ async function boot(): Promise<void> {
     if (my !== token) return;
     loose = loose.filter((a) => a !== fr);
     // hàng đầy → bạn đi theo lâu nhất về nhà Nhím trước (vẫn có trên bản đồ + trận cuối)
+    // iPad: hàng bạn cũng không quá ~24 draw call (bạn rip nhiều mảnh tính nặng hơn) → bạn cũ về nhà sớm hơn
     const famCount = followers.filter((a) => !a.def.friend).length;
-    const friendsInLine = followers.filter((a) => a.def.friend);
-    if (famCount + friendsInLine.length + 1 > MAX_PARADE && friendsInLine.length) {
+    let friendsInLine = followers.filter((a) => a.def.friend);
+    const cost = (list: Actor[]) => list.reduce((n, a) => n + drawCost(a), 0);
+    while (friendsInLine.length && (famCount + friendsInLine.length + 1 > MAX_PARADE || cost(friendsInLine) + drawCost(fr) > PARADE_FRIEND_CALLS)) {
       const old = friendsInLine[0];
+      friendsInLine = friendsInLine.slice(1);
       followers = followers.filter((a) => a !== old);
       void old.goHome();
       if (!toldHome) { toldHome = true; void play('friend_home'); }
