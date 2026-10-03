@@ -4,16 +4,23 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "build": "vite build",
-    "preview": "vite preview --host",
-    "audio": "bash scripts/gen-audio.sh"
+    "dev": "vite --host --port 5181 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host --port 5181",
+    "audio": "bash scripts/gen-audio.sh",
+    "optimize-models": "node scripts/optimize-models.mjs",
+    "test:human": "node scripts/test/play-human.mjs"
   },
   "dependencies": {
     "three": "0.186.1"
   },
   "devDependencies": {
+    "@gltf-transform/core": "4",
+    "@gltf-transform/extensions": "4",
+    "@gltf-transform/functions": "4",
     "@types/three": "0.186.0",
+    "meshoptimizer": "^1.3.0",
+    "sharp": "^0.35.5",
     "typescript": "5.9.3",
     "vite": "8.3.1"
   }

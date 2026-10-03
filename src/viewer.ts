@@ -1,4 +1,4 @@
-// Dev-only: xem 1 model. /viewer.html?model=models/twilight/scene.gltf&yaw=0.6&anim=1
+// Dev-only: xem 1 model. /viewer.html?model=models/twilight_eg.glb&yaw=0.6&anim=1
 // &rig=1: thử auto-rig ngựa (src/rig.ts) và cho phi tại chỗ; info ghi "rig ok/FAIL" + số tam giác.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -6,7 +6,7 @@ import { paintEyes } from './eyes';
 import { autoRigQuadruped, type Walker } from './rig';
 
 const q = new URLSearchParams(location.search);
-const url = q.get('model') ?? 'models/twilight/scene.gltf';
+const url = q.get('model') ?? 'models/twilight_eg.glb';
 const yaw = Number(q.get('yaw') ?? 0.7);
 const animIdx = q.get('anim');
 const rigOn = q.has('rig');

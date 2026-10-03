@@ -1,63 +1,78 @@
 {
+  "asset": {
+    "generator": "glTF-Transform v4.5.1",
+    "version": "2.0",
+    "extras": {
+      "author": "royalroyaltymodel112 (https://sketchfab.com/royalroyaltymodel112)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/twilight-sparkle-5f56454bf21446939962cb5a3de55fc5",
+      "title": "Twilight Sparkle"
+    }
+  },
   "accessors": [
     {
-      "bufferView": 2,
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 57294,
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 31272,
+      "bufferView": 0,
+      "byteOffset": 114588
+    },
+    {
+      "type": "SCALAR",
+      "componentType": 5123,
+      "count": 1422,
+      "bufferView": 0,
+      "byteOffset": 177132
+    },
+    {
+      "type": "VEC3",
       "componentType": 5126,
-      "count": 15661,
+      "count": 10848,
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 10848,
       "max": [
         2.8310019969940186,
         2.5338590145111084,
-        3.566162109375
+        3.5660269260406494
       ],
       "min": [
         -2.831005096435547,
-        -3.392302989959717,
+        -3.3911290168762207,
         -4.000058174133301
       ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 2,
-      "byteOffset": 187932,
-      "componentType": 5126,
-      "count": 15661,
-      "max": [
-        0.9999856352806091,
-        0.9998679757118225,
-        0.9997329711914063
-      ],
-      "min": [
-        -0.9999856352806091,
-        -0.999962329864502,
-        -1.0
-      ],
-      "type": "VEC3"
-    },
-    {
       "bufferView": 1,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
       "componentType": 5126,
-      "count": 15661,
-      "max": [
-        0.996957004070282,
-        0.9901040196418762
-      ],
-      "min": [
-        0.010863999836146832,
-        0.006413999944925308
-      ],
-      "type": "VEC2"
+      "count": 10848,
+      "bufferView": 1,
+      "byteOffset": 24
     },
     {
-      "bufferView": 0,
-      "componentType": 5125,
-      "count": 84843,
-      "type": "SCALAR"
-    },
-    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 6189,
       "bufferView": 2,
-      "byteOffset": 375864,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
       "componentType": 5126,
-      "count": 8833,
+      "count": 6189,
       "max": [
         1.4441859722137451,
         4.560092926025391,
@@ -68,52 +83,27 @@
         -3.248491048812866,
         -3.6633169651031494
       ],
-      "type": "VEC3"
-    },
-    {
       "bufferView": 2,
-      "byteOffset": 481860,
+      "byteOffset": 12
+    },
+    {
+      "type": "VEC2",
       "componentType": 5126,
-      "count": 8833,
-      "max": [
-        0.999900758266449,
-        0.999683141708374,
-        0.9999258518218994
-      ],
-      "min": [
-        -0.9997896552085876,
-        -0.9999454617500305,
-        -0.9998198747634888
-      ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "byteOffset": 125288,
-      "componentType": 5126,
-      "count": 8833,
-      "max": [
-        0.9911879897117615,
-        0.9932900071144104
-      ],
-      "min": [
-        0.007089999970048666,
-        0.045779999345541
-      ],
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 0,
-      "byteOffset": 339372,
-      "componentType": 5125,
-      "count": 46314,
-      "type": "SCALAR"
-    },
-    {
+      "count": 6189,
       "bufferView": 2,
-      "byteOffset": 587856,
+      "byteOffset": 24
+    },
+    {
+      "type": "VEC3",
       "componentType": 5126,
-      "count": 386,
+      "count": 271,
+      "bufferView": 3,
+      "byteOffset": 0
+    },
+    {
+      "type": "VEC3",
+      "componentType": 5126,
+      "count": 271,
       "max": [
         1.065850019454956,
         -1.3959300518035889,
@@ -124,238 +114,44 @@
         -2.8080830574035645,
         0.49660199880599976
       ],
-      "type": "VEC3"
+      "bufferView": 3,
+      "byteOffset": 12
     },
     {
-      "bufferView": 2,
-      "byteOffset": 592488,
+      "type": "VEC2",
       "componentType": 5126,
-      "count": 386,
-      "max": [
-        0.9991347789764404,
-        0.03635100647807121,
-        0.6453322172164917
-      ],
-      "min": [
-        -0.9991344809532166,
-        -0.9973891377449036,
-        -0.7576788663864136
-      ],
-      "type": "VEC3"
-    },
-    {
-      "bufferView": 1,
-      "byteOffset": 195952,
-      "componentType": 5126,
-      "count": 386,
-      "max": [
-        0.8352000117301941,
-        0.8149799704551697
-      ],
-      "min": [
-        0.20521000027656555,
-        0.1867700070142746
-      ],
-      "type": "VEC2"
-    },
-    {
-      "bufferView": 0,
-      "byteOffset": 524628,
-      "componentType": 5125,
-      "count": 2112,
-      "type": "SCALAR"
+      "count": 271,
+      "bufferView": 3,
+      "byteOffset": 24
     }
   ],
-  "asset": {
-    "extras": {
-      "author": "royalroyaltymodel112 (https://sketchfab.com/royalroyaltymodel112)",
-      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
-      "source": "https://sketchfab.com/3d-models/twilight-sparkle-5f56454bf21446939962cb5a3de55fc5",
-      "title": "Twilight Sparkle"
-    },
-    "generator": "Sketchfab-16.15.0",
-    "version": "2.0"
-  },
   "bufferViews": [
     {
       "buffer": 0,
-      "byteLength": 533076,
-      "name": "floatBufferViews",
+      "byteOffset": 0,
+      "byteLength": 179976,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteLength": 199040,
-      "byteOffset": 533076,
-      "byteStride": 8,
-      "name": "floatBufferViews",
+      "byteOffset": 179976,
+      "byteLength": 347136,
+      "byteStride": 32,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteLength": 597120,
-      "byteOffset": 732116,
-      "byteStride": 12,
-      "name": "floatBufferViews",
+      "byteOffset": 527112,
+      "byteLength": 198048,
+      "byteStride": 32,
       "target": 34962
-    }
-  ],
-  "buffers": [
-    {
-      "byteLength": 1329236,
-      "uri": "scene.bin"
-    }
-  ],
-  "extensionsUsed": [
-    "KHR_materials_specular"
-  ],
-  "images": [
-    {
-      "uri": "textures/blinn6SG_baseColor.jpeg"
     },
     {
-      "uri": "textures/blinn7SG_baseColor.jpeg"
-    },
-    {
-      "uri": "textures/blinn8SG_baseColor.jpeg"
-    }
-  ],
-  "materials": [
-    {
-      "doubleSided": true,
-      "name": "blinn6SG",
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 0
-        },
-        "metallicFactor": 0.0,
-        "roughnessFactor": 0.6
-      }
-    },
-    {
-      "doubleSided": true,
-      "name": "blinn7SG",
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 1
-        },
-        "metallicFactor": 0.0,
-        "roughnessFactor": 0.6
-      }
-    },
-    {
-      "doubleSided": true,
-      "extensions": {
-        "KHR_materials_specular": {
-          "specularColorFactor": [
-            1.0,
-            1.0,
-            1.0
-          ],
-          "specularFactor": 1.0
-        }
-      },
-      "name": "blinn8SG",
-      "pbrMetallicRoughness": {
-        "baseColorTexture": {
-          "index": 2
-        },
-        "metallicFactor": 0.0,
-        "roughnessFactor": 0.0
-      }
-    }
-  ],
-  "meshes": [
-    {
-      "name": "Object_0",
-      "primitives": [
-        {
-          "attributes": {
-            "NORMAL": 1,
-            "POSITION": 0,
-            "TEXCOORD_0": 2
-          },
-          "indices": 3,
-          "material": 0,
-          "mode": 4
-        }
-      ]
-    },
-    {
-      "name": "Object_1",
-      "primitives": [
-        {
-          "attributes": {
-            "NORMAL": 5,
-            "POSITION": 4,
-            "TEXCOORD_0": 6
-          },
-          "indices": 7,
-          "material": 1,
-          "mode": 4
-        }
-      ]
-    },
-    {
-      "name": "Object_2",
-      "primitives": [
-        {
-          "attributes": {
-            "NORMAL": 9,
-            "POSITION": 8,
-            "TEXCOORD_0": 10
-          },
-          "indices": 11,
-          "material": 2,
-          "mode": 4
-        }
-      ]
-    }
-  ],
-  "nodes": [
-    {
-      "children": [
-        1
-      ],
-      "matrix": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        2.220446049250313e-16,
-        -1.0,
-        0.0,
-        0.0,
-        1.0,
-        2.220446049250313e-16,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "name": "Sketchfab_model"
-    },
-    {
-      "children": [
-        2,
-        3,
-        4
-      ],
-      "name": "TwilightSparkle.obj.cleaner.materialmerger.gles"
-    },
-    {
-      "mesh": 0,
-      "name": "Object_2"
-    },
-    {
-      "mesh": 1,
-      "name": "Object_3"
-    },
-    {
-      "mesh": 2,
-      "name": "Object_4"
+      "buffer": 0,
+      "byteOffset": 725160,
+      "byteLength": 8672,
+      "byteStride": 32,
+      "target": 34962
     }
   ],
   "samplers": [
@@ -366,7 +162,159 @@
       "wrapT": 10497
     }
   ],
-  "scene": 0,
+  "textures": [
+    {
+      "source": 0,
+      "sampler": 0
+    },
+    {
+      "source": 1,
+      "sampler": 0
+    },
+    {
+      "source": 2,
+      "sampler": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "uri": "textures/blinn6SG_baseColor.jpeg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "uri": "textures/blinn7SG_baseColor.jpeg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "uri": "textures/blinn8SG_baseColor.jpeg"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "scene.bin",
+      "byteLength": 733832
+    }
+  ],
+  "materials": [
+    {
+      "name": "blinn6SG",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.6,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 0
+        }
+      }
+    },
+    {
+      "name": "blinn7SG",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0.6,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 1
+        }
+      }
+    },
+    {
+      "name": "blinn8SG",
+      "doubleSided": true,
+      "pbrMetallicRoughness": {
+        "roughnessFactor": 0,
+        "metallicFactor": 0,
+        "baseColorTexture": {
+          "index": 2
+        }
+      },
+      "extensions": {
+        "KHR_materials_specular": {}
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 3,
+            "POSITION": 4,
+            "TEXCOORD_0": 5
+          },
+          "mode": 4,
+          "material": 0,
+          "indices": 0
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 6,
+            "POSITION": 7,
+            "TEXCOORD_0": 8
+          },
+          "mode": 4,
+          "material": 1,
+          "indices": 1
+        }
+      ]
+    },
+    {
+      "name": "Object_2",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 10,
+            "TEXCOORD_0": 11
+          },
+          "mode": 4,
+          "material": 2,
+          "indices": 2
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Sketchfab_model",
+      "rotation": [
+        -0.7071067811865475,
+        0,
+        0,
+        0.7071067811865476
+      ],
+      "children": [
+        1
+      ]
+    },
+    {
+      "name": "TwilightSparkle.obj.cleaner.materialmerger.gles",
+      "children": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "name": "Object_2",
+      "mesh": 0
+    },
+    {
+      "name": "Object_3",
+      "mesh": 1
+    },
+    {
+      "name": "Object_4",
+      "mesh": 2
+    }
+  ],
   "scenes": [
     {
       "name": "Sketchfab_Scene",
@@ -375,18 +323,8 @@
       ]
     }
   ],
-  "textures": [
-    {
-      "sampler": 0,
-      "source": 0
-    },
-    {
-      "sampler": 0,
-      "source": 1
-    },
-    {
-      "sampler": 0,
-      "source": 2
-    }
+  "scene": 0,
+  "extensionsUsed": [
+    "KHR_materials_specular"
   ]
 }
