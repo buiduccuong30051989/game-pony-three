@@ -8,7 +8,7 @@ intro_ba|Ba Cường là Rainbow Dash, nhanh và mạnh! Ba bị nhốt ở đ�
 intro_ong|Ông Cương là Applejack, ở vườn táo. Đi cứu ông nào!
 intro_ba_tuyet|Bà Tuyết là công chúa Celestia, người kéo mặt trời lên. Cứu bà thì trời sẽ sáng đó!
 intro_final|Đây là lâu đài mặt trăng. Nightmare Moon thật ra là bác Hanh bị bóng tối biến thành đó. Cả nhà ở đây cùng Nhím rồi. Dùng phép tình bạn để cứu bác Hanh nhé!
-hint_move|Chạm mũi tên để đi, chạm nút tròn để nhảy nhé.
+hint_move|Chạm xuống đất để đi, chạm nút tròn để nhảy nhé.
 monster|Ui, quái vật bóng đêm chặn đường! Trả lời đúng để làm phép nào!
 ask_count|Quái vật giữ mấy viên ngọc? Chạm từng viên để đếm nhé.
 ask_pick_number|Có mấy viên ngọc? Chạm vào số đúng nhé.
@@ -62,7 +62,7 @@ fr_fluttershy_1|Fluttershy thì thầm: Nhím giỏi lắm!
 fr_mun_1|Mèo Mun kêu meo meo khen Nhím!
 fr_rom_1|Mèo Rơm kêu meo meo, hoan hô Nhím!
 spike_hint_1|Nhím ơi, đi theo đường sao lấp lánh nhé!
-spike_hint_2|Bấm mũi tên để đi nào Nhím!
+spike_hint_2|Chạm xuống đất để đi nào Nhím!
 spike_hint_3|Quái vật ở đằng kia kìa Nhím!
 spike_hint_bubble|Bong bóng ở đằng kia, Nhím đi tới đó nhé!
 # --- trận cuối

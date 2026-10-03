@@ -68,7 +68,7 @@ const HELP: Partial<Record<CastId, [string, string]>> = {
 };
 const SPIKE_TEXT: Record<string, string> = {
   spike_hint_1: 'Đi theo đường sao lấp lánh nhé!',
-  spike_hint_2: 'Bấm mũi tên để đi nào Nhím!',
+  spike_hint_2: 'Chạm xuống đất để đi nào Nhím!',
   spike_hint_3: 'Quái vật ở đằng kia kìa!',
   spike_hint_bubble: 'Bong bóng ở đằng kia, đi tới đó nhé!',
 };
