@@ -22,7 +22,7 @@ Không có thua, sai chỉ bị quái/Nightmare Moon cười rồi gợi ý.
 
 **Bạn pony theo màn** (không bạn nào lặp lại; `LEVELS[].friends` trong `src/data.ts`): 1 Pinkie Pie, Fluttershy, Derpy ·
 2 Minty, Babs Seed, Bạc Hà · 3 Starlight Glimmer, Sunset Shimmer, Cầu Vồng · 4 Zipp Storm, Pipp Petals, Surprise ·
-5 Big Mac, Sunny, Izzy · 6 Công chúa Cadance, Shining Armor, Sunburst. Trận cuối không cứu thêm: TẤT CẢ bạn đã cứu đứng
+5 Big Mac, Sunny, Izzy · 6 Công chúa Cadance, Shining Armor, Sunburst. Trận cuối không cứu thêm: tối đa 10 bạn đã cứu gần nhất (trừ 5 bạn nặng, xem Hiệu năng) đứng
 sau người nhà cổ vũ (nhảy theo sóng mỗi viên ngọc, ngó Nightmare Moon).
 
 **Hàng đi theo**: rắn bám vết chân Twilight (cách ~1.1–1.4), người nhà đứng đầu rồi tới bạn pony; tối đa 8 người (iPad),
