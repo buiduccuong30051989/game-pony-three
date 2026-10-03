@@ -52,7 +52,7 @@ vẽ mống mắt + con ngươi bằng vertex color lúc tải (`src/eyes.ts`). 
 
 ## Khác
 
-- Kenney Nature Kit (cây, cỏ, hoa, đá), Kenney UI/Impact audio (`sfx_*.ogg`): CC0.
+- Kenney Nature Kit (cây, cỏ, hoa, đá): CC0. Hiệu ứng âm thanh tổng hợp bằng WebAudio (không còn file).
 - Quaternius Animated Woman (`models/haan.glb`, dự phòng): CC0.
 - Emoji: font hệ thống (Apple Color Emoji).
 - Giọng đọc: giọng Linh của macOS (`say`), dùng cá nhân.
